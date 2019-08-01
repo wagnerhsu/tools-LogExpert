@@ -5,7 +5,7 @@ using System.Text;
 
 namespace LogExpert
 {
-    internal class DefaultLogfileColumnizer : ILogLineColumnizer
+    public class DefaultLogfileColumnizer : ILogLineColumnizer
     {
         #region ILogLineColumnizer Members
 
@@ -51,6 +51,10 @@ namespace LogExpert
             get { return GetName(); }
         }
 
+        public Priority GetPriority(string fileName, IEnumerable<ILogLine> samples)
+        {
+            return Priority.CanSupport;
+        }
         #endregion
 
         #region ILogLineColumnizer Not implemented Members

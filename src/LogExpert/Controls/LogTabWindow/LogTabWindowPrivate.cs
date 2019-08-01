@@ -10,6 +10,7 @@ using System.Security;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using LogExpert.Classes.Columnizer;
 using LogExpert.Dialogs;
 using WeifenLuo.WinFormsUI.Docking;
 
@@ -35,6 +36,7 @@ namespace LogExpert
                     writer.Write(text);
                     writer.Close();
                 }
+
                 string title = "Clipboard";
                 LogWindow logWindow = AddTempFileTab(fileName, title);
                 LogWindowData data = logWindow.Tag as LogWindowData;
@@ -102,6 +104,7 @@ namespace LogExpert
                 WindowState = FormWindowState.Normal;
                 ConfigManager.Settings.appBounds = Bounds;
             }
+
             ResumeLayout();
         }
 
@@ -144,6 +147,7 @@ namespace LogExpert
                     }
                 }
             }
+
             Activate();
         }
 
@@ -166,6 +170,7 @@ namespace LogExpert
             {
                 logWindowList.Add(logWindow);
             }
+
             logWindow.FileSizeChanged += FileSizeChanged;
             logWindow.TailFollowed += TailFollowed;
             logWindow.Disposed += logWindow_Disposed;
@@ -204,11 +209,13 @@ namespace LogExpert
             {
                 ConfigManager.Settings.fileHistoryList.RemoveAt(index);
             }
+
             ConfigManager.Settings.fileHistoryList.Insert(0, fileName);
             while (ConfigManager.Settings.fileHistoryList.Count > MAX_FILE_HISTORY)
             {
                 ConfigManager.Settings.fileHistoryList.RemoveAt(ConfigManager.Settings.fileHistoryList.Count - 1);
             }
+
             ConfigManager.Save(SettingsFlags.FileHistory);
 
             FillHistoryMenu();
@@ -226,6 +233,7 @@ namespace LogExpert
                     }
                 }
             }
+
             return null;
         }
 
@@ -244,6 +252,7 @@ namespace LogExpert
                 {
                     return fileName;
                 }
+
                 if (persistenceData.fileName != null && persistenceData.fileName.Length > 0)
                 {
                     IFileSystemPlugin fs = PluginRegistry.GetInstance().FindFileSystemForUri(persistenceData.fileName);
@@ -251,6 +260,7 @@ namespace LogExpert
                     {
                         return persistenceData.fileName;
                     }
+
                     // On relative paths the URI check (and therefore the file system plugin check) will fail.
                     // So fs == null and fs == LocalFileSystem are handled here like normal files.
                     if (Path.IsPathRooted(persistenceData.fileName))
@@ -265,6 +275,7 @@ namespace LogExpert
                     }
                 }
             }
+
             return fileName;
         }
 
@@ -276,6 +287,7 @@ namespace LogExpert
                 ToolStripItem item = new ToolStripMenuItem(file);
                 strip.Items.Add(item);
             }
+
             strip.ItemClicked += history_ItemClicked;
             strip.MouseUp += strip_MouseUp;
             lastUsedToolStripMenuItem.DropDown = strip;
@@ -287,6 +299,7 @@ namespace LogExpert
             {
                 logWindowList.Remove(logWindow);
             }
+
             DisconnectEventHandlers(logWindow);
         }
 
@@ -296,10 +309,12 @@ namespace LogExpert
             {
                 ChangeCurrentLogWindow(null);
             }
+
             lock (logWindowList)
             {
                 logWindowList.Remove(logWindow);
             }
+
             logWindow.Close(dontAsk);
         }
 
@@ -365,6 +380,7 @@ namespace LogExpert
                     }
                 }
             }
+
             openFileDialog.Multiselect = true;
 
             if (DialogResult.OK == openFileDialog.ShowDialog(this))
@@ -375,6 +391,7 @@ namespace LogExpert
                     ConfigManager.Settings.lastDirectory = info.DirectoryName;
                     ConfigManager.Save(SettingsFlags.FileHistory);
                 }
+
                 if (info.Exists)
                 {
                     LoadFiles(openFileDialog.FileNames, false);
@@ -430,6 +447,7 @@ namespace LogExpert
                     }
                 }
             }
+
             if (option == MultiFileOption.SingleFiles)
             {
                 AddFileTabs(names);
@@ -447,6 +465,7 @@ namespace LogExpert
             {
                 ConfigManager.Settings.columnizerHistoryList.Remove(entry);
             }
+
             ConfigManager.Settings.columnizerHistoryList.Add(new ColumnizerHistoryEntry(fileName,
                 columnizer.GetName()));
             if (ConfigManager.Settings.columnizerHistoryList.Count > MAX_COLUMNIZER_HISTORY)
@@ -464,6 +483,7 @@ namespace LogExpert
                     return entry;
                 }
             }
+
             return null;
         }
 
@@ -517,6 +537,7 @@ namespace LogExpert
                 {
                     Text = titleName + " - " + newLogWindow.FileName;
                 }
+
                 multiFileToolStripMenuItem.Checked = CurrentLogWindow.IsMultiFile;
                 multiFileToolStripMenuItem.Enabled = true;
                 multiFileEnabledStripMenuItem.Checked = CurrentLogWindow.IsMultiFile;
@@ -601,6 +622,7 @@ namespace LogExpert
                 dateTimeDragControl.Visible = false;
                 dateTimeDragControl.Enabled = false;
             }
+
             toolStripButtonBubbles.Checked = e.ShowBookmarkBubbles;
             highlightGroupsComboBox.Text = e.HighlightGroupName;
             columnFinderToolStripMenuItem.Checked = e.ColumnFinderVisible;
@@ -612,10 +634,18 @@ namespace LogExpert
         {
             if (e.Value <= e.MaxValue && e.Value >= e.MinValue)
             {
-                loadProgessBar.Minimum = e.MinValue;
-                loadProgessBar.Maximum = e.MaxValue;
-                loadProgessBar.Value = e.Value;
-                loadProgessBar.Visible = e.Visible;
+                try
+                {
+                    loadProgessBar.Minimum = e.MinValue;
+                    loadProgessBar.Maximum = e.MaxValue;
+                    loadProgessBar.Value = e.Value;
+                    loadProgessBar.Visible = e.Visible;
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Error during ProgressBarUpdateWorker value {0}, min {1}, max {2}, visible {3}", e.Value, e.MinValue, e.MaxValue, e.Visible);
+                }
+
                 Invoke(new MethodInvoker(statusStrip1.Refresh));
             }
         }
@@ -648,6 +678,7 @@ namespace LogExpert
                             {
                                 e = lastStatusLineEvent.Clone();
                             }
+
                             BeginInvoke(new StatusLineEventFx(StatusLineEventWorker), e);
                         }
                         catch (ObjectDisposedException)
@@ -669,7 +700,7 @@ namespace LogExpert
         }
 
         // tailState: 0,1,2 = on/off/off by Trigger
-        // syncMode: 0 = normal (no), 1 = time synced 
+        // syncMode: 0 = normal (no), 1 = time synced
         private Icon CreateLedIcon(int level, bool dirty, int tailState, int syncMode)
         {
             Rectangle iconRect = leds[0];
@@ -753,6 +784,7 @@ namespace LogExpert
                     {
                         ledIcons[i, 0, tailMode, syncMode] = CreateLedIcon(i, false, tailMode, syncMode);
                     }
+
                     for (int i = 0; i < 6; ++i)
                     {
                         ledIcons[i, 1, tailMode, syncMode] = CreateLedIcon(i, true, tailMode, syncMode);
@@ -782,6 +814,7 @@ namespace LogExpert
             {
                 data.diffSum = DIFF_MAX;
             }
+
             Icon icon = GetIcon(data.diffSum, data);
             BeginInvoke(new SetTabIconDelegate(SetTabIcon), logWin, icon);
         }
@@ -792,6 +825,7 @@ namespace LogExpert
             {
                 diff = 60;
             }
+
             int level = diff / 10;
             if (diff > 0 && level == 0)
             {
@@ -801,6 +835,7 @@ namespace LogExpert
             {
                 level = 1;
             }
+
             return level - 1;
         }
 
@@ -817,6 +852,7 @@ namespace LogExpert
                 {
                     return;
                 }
+
                 lock (logWindowList)
                 {
                     foreach (LogWindow logWindow in logWindowList)
@@ -829,6 +865,7 @@ namespace LogExpert
                             {
                                 data.diffSum = 0;
                             }
+
                             Icon icon = GetIcon(data.diffSum, data);
                             BeginInvoke(new SetTabIconDelegate(SetTabIcon), logWindow, icon);
                         }
@@ -870,6 +907,7 @@ namespace LogExpert
             {
                 return;
             }
+
             if (encoding is ASCIIEncoding)
             {
                 aSCIIToolStripMenuItem.Checked = true;
@@ -890,6 +928,7 @@ namespace LogExpert
             {
                 iSO88591ToolStripMenuItem.Checked = true;
             }
+
             aNSIToolStripMenuItem.Text = Encoding.Default.HeaderName;
         }
 
@@ -917,6 +956,7 @@ namespace LogExpert
                     logWindow.PreferencesChanged(ConfigManager.Settings.preferences, false, flags);
                 }
             }
+
             bookmarkWindow.PreferencesChanged(ConfigManager.Settings.preferences, false, flags);
 
             HilightGroupList = ConfigManager.Settings.hilightGroupList;
@@ -934,18 +974,22 @@ namespace LogExpert
                 dateTimeDragControl.DragOrientation = settings.preferences.timestampControlDragOrientation;
                 hideLineColumnToolStripMenuItem.Checked = settings.hideLineColumn;
             }
+
             if ((flags & SettingsFlags.FileHistory) == SettingsFlags.FileHistory)
             {
                 FillHistoryMenu();
             }
+
             if ((flags & SettingsFlags.GuiOrColors) == SettingsFlags.GuiOrColors)
             {
                 SetTabIcons(settings.preferences);
             }
+
             if ((flags & SettingsFlags.ToolSettings) == SettingsFlags.ToolSettings)
             {
                 FillToolLauncherBar();
             }
+
             if ((flags & SettingsFlags.HighlightSettings) == SettingsFlags.HighlightSettings)
             {
                 FillHighlightComboBox();
@@ -984,9 +1028,11 @@ namespace LogExpert
                 {
                     item.DisplayStyle = ToolStripItemDisplayStyle.Image;
                 }
+
                 DestroyIcon(icon.Handle);
                 icon.Dispose();
             }
+
             if (!string.IsNullOrEmpty(entry.cmd))
             {
                 item.ToolTipText = entry.name;
@@ -1000,6 +1046,7 @@ namespace LogExpert
                 OpenSettings(2);
                 return;
             }
+
             if (CurrentLogWindow != null)
             {
                 ILogLine line = CurrentLogWindow.GetCurrentLine();
@@ -1023,23 +1070,21 @@ namespace LogExpert
             {
                 return;
             }
+
             Process process = new Process();
             ProcessStartInfo startInfo = new ProcessStartInfo(cmd, args);
             if (!Util.IsNull(workingDir))
             {
                 startInfo.WorkingDirectory = workingDir;
             }
+
             process.StartInfo = startInfo;
             process.EnableRaisingEvents = true;
 
             if (sysoutPipe)
             {
-                ILogLineColumnizer columnizer = Util.FindColumnizerByName(columnizerName,
+                ILogLineColumnizer columnizer = ColumnizerPicker.DecideColumnizerByName(columnizerName,
                     PluginRegistry.GetInstance().RegisteredColumnizers);
-                if (columnizer == null)
-                {
-                    columnizer = PluginRegistry.GetInstance().RegisteredColumnizers[0];
-                }
 
                 _logger.Info("Starting external tool with sysout redirection: {0} {1}", cmd, args);
                 startInfo.UseShellExecute = false;
@@ -1055,6 +1100,7 @@ namespace LogExpert
                     MessageBox.Show(e.Message);
                     return;
                 }
+
                 SysoutPipe pipe = new SysoutPipe(process.StandardOutput);
                 LogWindow logWin = AddTempFileTab(pipe.FileName,
                     CurrentLogWindow.IsTempFile
@@ -1093,6 +1139,7 @@ namespace LogExpert
                     }
                 }
             }
+
             foreach (Form form in closeList)
             {
                 form.Close();
@@ -1189,12 +1236,14 @@ namespace LogExpert
                     SetToolIcon(tool, button);
                     externalToolsToolStrip.Items.Add(button);
                 }
+
                 num++;
                 ToolStripMenuItem menuItem = new ToolStripMenuItem(tool.name);
                 menuItem.Tag = tool;
                 SetToolIcon(tool, menuItem);
                 toolsToolStripMenuItem.DropDownItems.Add(menuItem);
             }
+
             externalToolsToolStrip.ResumeLayout();
 
             externalToolsToolStrip.Visible = num > 0; // do not show bar if no tool uses it
@@ -1214,6 +1263,7 @@ namespace LogExpert
             {
                 _logger.Info("Generation {0} collect count: {1}", i, GC.CollectionCount(i));
             }
+
             _logger.Info("----------------------------");
         }
 
@@ -1277,6 +1327,7 @@ namespace LogExpert
                     _logger.Warn("Layout data contains non-existing LogWindow for {0}", fileName);
                 }
             }
+
             return null;
         }
 
