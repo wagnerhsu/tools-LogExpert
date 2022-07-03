@@ -235,7 +235,7 @@ namespace SftpFileSystem
                 }
                 else if (diff.TotalSeconds < 30)
                 {
-                    return (int) diff.TotalSeconds * 100;
+                    return (int)diff.TotalSeconds * 100;
                 }
                 else
                 {
@@ -257,11 +257,11 @@ namespace SftpFileSystem
                 {
                     return new SftpStreamChilkat(_sftp, _remoteFileName);
                 }
-                catch (IOException fe)
+                catch (IOException)
                 {
                     if (--retry <= 0)
                     {
-                        throw fe;
+                        throw;
                     }
 
                     Thread.Sleep(RetrySleep);

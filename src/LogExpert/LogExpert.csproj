@@ -61,6 +61,7 @@
     <Compile Include="..\Solution Items\AssemblyVersion.cs">
       <Link>Properties\AssemblyVersion.cs</Link>
     </Compile>
+    <Compile Include="Classes\ILogLineColumnizerCallback\ColumnizerCallback.cs" />
     <Compile Include="Classes\Columnizer\ColumnizerPicker.cs" />
     <Compile Include="Classes\Columnizer\SquareBracketColumnizer.cs" />
     <Compile Include="Classes\Columnizer\TimeFormatDeterminer.cs" />
@@ -72,8 +73,9 @@
     <Compile Include="Classes\Highlight\ActionEntry.cs" />
     <Compile Include="Classes\ArgParser.cs" />
     <Compile Include="Classes\Highlight\HilightMatchEntry.cs" />
+    <Compile Include="Classes\ILogLineColumnizerCallback\LogExpertCallback.cs" />
+    <Compile Include="Classes\Log\LogStreamReaderBase.cs" />
     <Compile Include="Classes\Log\PositionAwareStreamReaderBase.cs" />
-    <Compile Include="Classes\Log\PositionAwareStreamReaderFactory.cs" />
     <Compile Include="Classes\Log\PositionAwareStreamReaderLegacy.cs" />
     <Compile Include="Classes\Persister\FilterTabData.cs" />
     <Compile Include="Classes\Persister\ProjectData.cs" />
@@ -107,6 +109,10 @@
     <Compile Include="Controls\LogWindow\LogWindowsPublic.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Dialogs\LogCellEditingControl.cs" />
+    <Compile Include="Dialogs\LogGridCell.cs" />
+    <Compile Include="Dialogs\LogTextColumn.cs" />
+    <Compile Include="Extensions\ComboBoxExtensions.cs" />
     <Compile Include="Extensions\IEnumerable.cs" />
     <Compile Include="Interface\BackgroundProcessCancelHandler.cs" />
     <Compile Include="Entities\Bookmark.cs" />
@@ -116,7 +122,6 @@
     <Compile Include="Classes\Bookmark\BookmarkExporter.cs" />
     <Compile Include="Entities\BookmarkOverlay.cs" />
     <Compile Include="Classes\Bookmark\BookmarkView.cs" />
-    <Compile Include="Entities\CellContent.cs" />
     <Compile Include="Classes\CmdLine.cs" />
     <Compile Include="Classes\ColumnCache.cs" />
     <Compile Include="Entities\EventArgs\ColumnizerEventArgs.cs" />
@@ -186,13 +191,10 @@
     <Compile Include="Classes\Filter\Filter.cs" />
     <Compile Include="Classes\Filter\FilterCancelHandler.cs" />
     <Compile Include="Classes\Filter\FilterStarter.cs" />
-    <Compile Include="Entities\EventArgs\HighlightEventArgs.cs" />
     <Compile Include="Entities\EventArgs\FilterListChangedEventArgs.cs" />
-    <Compile Include="Entities\HighlightResults.cs" />
     <Compile Include="Entities\HilightGroup.cs" />
     <Compile Include="Interface\IBookmarkData.cs" />
     <Compile Include="Interface\IBookmarkView.cs" />
-    <Compile Include="Interface\ILogExpertClient.cs" />
     <Compile Include="Interface\ILogExpertProxy.cs" />
     <Compile Include="Interface\ILogStreamReader.cs" />
     <Compile Include="Interface\ILogPaintContext.cs" />
@@ -202,7 +204,7 @@
     <Compile Include="Classes\Log\LogBufferCacheEntry.cs" />
     <Compile Include="Classes\LogExpertApplicationContext.cs" />
     <Compile Include="Entities\LogFileException.cs" />
-    <Compile Include="Entities\MultifileOptions.cs" />
+    <Compile Include="Entities\MultiFileOptions.cs" />
     <Compile Include="Classes\ObjectClone.cs" />
     <Compile Include="Classes\PaintHelper.cs" />
     <Compile Include="Classes\ParamParser.cs" />
@@ -353,7 +355,7 @@
       <DependentUpon>PatternWindow.cs</DependentUpon>
     </Compile>
     <Compile Include="Classes\PluginRegistry.cs" />
-    <Compile Include="Classes\Log\PositionAwareStreamReader.cs" />
+    <Compile Include="Classes\Log\PositionAwareStreamReaderSystem.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Entities\EventArgs\ProgressEventArgs.cs" />
     <Compile Include="Classes\Persister\ProjectPersister.cs" />
@@ -461,7 +463,6 @@
     <Compile Include="Entities\EventArgs\StatusEventArgs.cs" />
     <Compile Include="Entities\EventArgs\SyncModeEventArgs.cs" />
     <Compile Include="Classes\SysoutPipe.cs" />
-    <Compile Include="Classes\SystemInfo.cs" />
     <Compile Include="Classes\TimeSpreadCalculator.cs" />
     <Compile Include="Classes\Columnizer\TimestampColumnizer.cs">
       <SubType>Code</SubType>
@@ -587,9 +588,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NLog.Config">
-      <Version>4.4.12</Version>
+      <Version>4.6.7</Version>
     </PackageReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

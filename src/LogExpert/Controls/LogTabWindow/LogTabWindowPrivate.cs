@@ -78,9 +78,8 @@ namespace LogExpert
             ConfigManager.Settings.lastOpenFilesList.Clear();
             foreach (DockContent content in dockPanel.Contents)
             {
-                if (content is LogWindow)
+                if (content is LogWindow logWin)
                 {
-                    LogWindow logWin = content as LogWindow;
                     if (!logWin.IsTempFile)
                     {
                         ConfigManager.Settings.lastOpenFilesList.Add(logWin.GivenFileName);
@@ -135,7 +134,7 @@ namespace LogExpert
         {
             foreach (string fileName in fileNames)
             {
-                if (fileName != null && fileName.Length > 0)
+                if (!string.IsNullOrEmpty(fileName))
                 {
                     if (fileName.EndsWith(".lxj"))
                     {
@@ -203,14 +202,20 @@ namespace LogExpert
 
         private void AddToFileHistory(string fileName)
         {
-            Predicate<string> findName = delegate(string s) { return s.ToLower().Equals(fileName.ToLower()); };
-            int index = ConfigManager.Settings.fileHistoryList.FindIndex(findName);
+            bool FindName(string s)
+            {
+                return s.ToLower().Equals(fileName.ToLower());
+            }
+
+            int index = ConfigManager.Settings.fileHistoryList.FindIndex(FindName);
+
             if (index != -1)
             {
                 ConfigManager.Settings.fileHistoryList.RemoveAt(index);
             }
 
             ConfigManager.Settings.fileHistoryList.Insert(0, fileName);
+
             while (ConfigManager.Settings.fileHistoryList.Count > MAX_FILE_HISTORY)
             {
                 ConfigManager.Settings.fileHistoryList.RemoveAt(ConfigManager.Settings.fileHistoryList.Count - 1);
@@ -253,7 +258,7 @@ namespace LogExpert
                     return fileName;
                 }
 
-                if (persistenceData.fileName != null && persistenceData.fileName.Length > 0)
+                if (!string.IsNullOrEmpty(persistenceData.fileName))
                 {
                     IFileSystemPlugin fs = PluginRegistry.GetInstance().FindFileSystemForUri(persistenceData.fileName);
                     if (fs != null && !fs.GetType().Equals(typeof(LocalFileSystem)))
@@ -267,12 +272,10 @@ namespace LogExpert
                     {
                         return persistenceData.fileName;
                     }
-                    else
-                    {
-                        // handle relative paths in .lxp files
-                        string dir = Path.GetDirectoryName(fileName);
-                        return Path.Combine(dir, persistenceData.fileName);
-                    }
+
+                    // handle relative paths in .lxp files
+                    string dir = Path.GetDirectoryName(fileName);
+                    return Path.Combine(dir, persistenceData.fileName);
                 }
             }
 
@@ -282,6 +285,7 @@ namespace LogExpert
         private void FillHistoryMenu()
         {
             ToolStripDropDown strip = new ToolStripDropDownMenu();
+
             foreach (string file in ConfigManager.Settings.fileHistoryList)
             {
                 ToolStripItem item = new ToolStripMenuItem(file);
@@ -326,7 +330,9 @@ namespace LogExpert
             dlg.TopMost = TopMost;
             dlg.HilightGroupList = HilightGroupList;
             dlg.PreSelectedGroupName = highlightGroupsComboBox.Text;
+            
             DialogResult res = dlg.ShowDialog();
+            
             if (res == DialogResult.OK)
             {
                 HilightGroupList = dlg.HilightGroupList;
@@ -362,7 +368,7 @@ namespace LogExpert
             }
             else
             {
-                if (ConfigManager.Settings.lastDirectory != null && ConfigManager.Settings.lastDirectory.Length > 0)
+                if (!string.IsNullOrEmpty(ConfigManager.Settings.lastDirectory))
                 {
                     openFileDialog.InitialDirectory = ConfigManager.Settings.lastDirectory;
                 }
@@ -370,8 +376,7 @@ namespace LogExpert
                 {
                     try
                     {
-                        openFileDialog.InitialDirectory =
-                            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                        openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                     }
                     catch (SecurityException e)
                     {
@@ -401,6 +406,8 @@ namespace LogExpert
 
         private void LoadFiles(string[] names, bool invertLogic)
         {
+            Array.Sort(names);
+
             if (names.Length == 1)
             {
                 if (names[0].EndsWith(".lxj"))
@@ -408,11 +415,9 @@ namespace LogExpert
                     LoadProject(names[0], true);
                     return;
                 }
-                else
-                {
-                    AddFileTab(names[0], false, null, false, null);
-                    return;
-                }
+
+                AddFileTab(names[0], false, null, false, null);
+                return;
             }
 
             MultiFileOption option = ConfigManager.Settings.preferences.multiFileOption;
@@ -420,6 +425,7 @@ namespace LogExpert
             {
                 MultiLoadRequestDialog dlg = new MultiLoadRequestDialog();
                 DialogResult res = dlg.ShowDialog();
+
                 if (res == DialogResult.Yes)
                 {
                     option = MultiFileOption.SingleFiles;
@@ -529,13 +535,14 @@ namespace LogExpert
                 newLogWindow.BookmarkAdded += BookmarkAdded;
                 newLogWindow.BookmarkRemoved += BookmarkRemoved;
                 newLogWindow.BookmarkTextChanged += BookmarkTextChanged;
+
                 if (newLogWindow.IsTempFile)
                 {
-                    Text = titleName + " - " + newLogWindow.TempTitleName;
+                    Text = titleName + @" - " + newLogWindow.TempTitleName;
                 }
                 else
                 {
-                    Text = titleName + " - " + newLogWindow.FileName;
+                    Text = titleName + @" - " + newLogWindow.FileName;
                 }
 
                 multiFileToolStripMenuItem.Checked = CurrentLogWindow.IsMultiFile;
@@ -608,6 +615,7 @@ namespace LogExpert
             multiFileEnabledStripMenuItem.Checked = e.IsMultiFileActive;
             cellSelectModeToolStripMenuItem.Checked = e.CellSelectMode;
             RefreshEncodingMenuBar(e.CurrentEncoding);
+
             if (e.TimeshiftPossible && ConfigManager.Settings.preferences.timestampControl)
             {
                 dateTimeDragControl.MinDateTime = e.MinTimestamp;
@@ -683,6 +691,7 @@ namespace LogExpert
                         }
                         catch (ObjectDisposedException)
                         {
+                            //TODO needs to be handled or removed
                         }
                     }
                 }
@@ -715,6 +724,7 @@ namespace LogExpert
             {
                 Rectangle ledRect = leds[i];
                 ledRect.Offset(0, offsetFromTop);
+                
                 if (level >= leds.Length - i)
                 {
                     gfx.FillRectangle(ledBrushes[i], ledRect);
@@ -848,7 +858,7 @@ namespace LogExpert
                 {
                     Thread.Sleep(200);
                 }
-                catch (Exception)
+                catch
                 {
                     return;
                 }
@@ -879,10 +889,7 @@ namespace LogExpert
             if (logWindow != null)
             {
                 logWindow.Icon = icon;
-                if (logWindow.DockHandler.Pane != null)
-                {
-                    logWindow.DockHandler.Pane.TabStripControl.Invalidate(false);
-                }
+                logWindow.DockHandler.Pane?.TabStripControl.Invalidate(false);
             }
         }
 
@@ -903,6 +910,7 @@ namespace LogExpert
             uTF8ToolStripMenuItem.Checked = false;
             uTF16ToolStripMenuItem.Checked = false;
             iSO88591ToolStripMenuItem.Checked = false;
+
             if (encoding == null)
             {
                 return;
@@ -936,6 +944,7 @@ namespace LogExpert
         {
             SettingsDialog dlg = new SettingsDialog(ConfigManager.Settings.preferences, this, tabToOpen);
             dlg.TopMost = TopMost;
+
             if (DialogResult.OK == dlg.ShowDialog())
             {
                 ConfigManager.Settings.preferences = dlg.Preferences;
@@ -1043,6 +1052,7 @@ namespace LogExpert
         {
             if (string.IsNullOrEmpty(toolEntry.cmd))
             {
+                //TODO TabIndex => To Enum
                 OpenSettings(2);
                 return;
             }
@@ -1133,9 +1143,9 @@ namespace LogExpert
             {
                 foreach (DockContent content in dockPanel.Contents)
                 {
-                    if (content is LogWindow)
+                    if (content is LogWindow window)
                     {
-                        closeList.Add(content as Form);
+                        closeList.Add(window);
                     }
                 }
             }
@@ -1208,10 +1218,7 @@ namespace LogExpert
         private void ApplySelectedHighlightGroup()
         {
             string groupName = highlightGroupsComboBox.Text;
-            if (CurrentLogWindow != null)
-            {
-                CurrentLogWindow.SetCurrentHighlightGroup(groupName);
-            }
+            CurrentLogWindow?.SetCurrentHighlightGroup(groupName);
         }
 
         private void FillToolLauncherBar()
@@ -1314,7 +1321,8 @@ namespace LogExpert
             {
                 return bookmarkWindow;
             }
-            else if (persistString.StartsWith(WindowTypes.LogWindow.ToString()))
+
+            if (persistString.StartsWith(WindowTypes.LogWindow.ToString()))
             {
                 string fileName = persistString.Substring(WindowTypes.LogWindow.ToString().Length + 1);
                 LogWindow win = FindWindowForFile(fileName);
@@ -1322,10 +1330,8 @@ namespace LogExpert
                 {
                     return win;
                 }
-                else
-                {
-                    _logger.Warn("Layout data contains non-existing LogWindow for {0}", fileName);
-                }
+
+                _logger.Warn("Layout data contains non-existing LogWindow for {0}", fileName);
             }
 
             return null;
@@ -1333,10 +1339,7 @@ namespace LogExpert
 
         private void OnHighlightSettingsChanged()
         {
-            if (HighlightSettingsChanged != null)
-            {
-                HighlightSettingsChanged(this, new EventArgs());
-            }
+            HighlightSettingsChanged?.Invoke(this, new EventArgs());
         }
 
         #endregion

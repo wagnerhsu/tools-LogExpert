@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
-//using System.Linq;
 using System.Text;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Drawing;
-using System.Collections;
 using System.Reflection;
+using System.Windows.Forms;
 using NLog;
+using System.Linq;
 
 namespace LogExpert
 {
@@ -18,10 +18,10 @@ namespace LogExpert
 
         private static readonly ILogger _logger = LogManager.GetCurrentClassLogger();
 
-        private static readonly object monitor = new object();
-        private static ConfigManager instance;
-        private readonly object loadSaveLock = new object();
-        private Settings settings;
+        private static readonly object _monitor = new object();
+        private static ConfigManager _instance;
+        private readonly object _loadSaveLock = new object();
+        private Settings _settings;
 
         #endregion
 
@@ -29,7 +29,7 @@ namespace LogExpert
 
         private ConfigManager()
         {
-            settings = Load();
+            _settings = Load();
         }
 
         #endregion
@@ -46,20 +46,22 @@ namespace LogExpert
         {
             get
             {
-                lock (monitor)
+                lock (_monitor)
                 {
-                    if (instance == null)
+                    if (_instance == null)
                     {
-                        instance = new ConfigManager();
+                        _instance = new ConfigManager();
                     }
                 }
-                return instance;
+                return _instance;
             }
         }
         
         public static string ConfigDir => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\LogExpert";
 
-        public static Settings Settings => Instance.settings;
+        public static string PortableMode => Application.StartupPath + "\\portableMode.dat";
+
+        public static Settings Settings => Instance._settings;
 
         #endregion
 
@@ -77,7 +79,7 @@ namespace LogExpert
 
         public static void Import(Stream fs, ExportImportFlags flags)
         {
-            Instance.settings = Instance.Import(Instance.settings, fs, flags);
+            Instance._settings = Instance.Import(Instance._settings, fs, flags);
             Save(SettingsFlags.All);
         }
 
@@ -95,7 +97,20 @@ namespace LogExpert
         private Settings Load()
         {
             _logger.Info("Loading settings");
-            string dir = ConfigDir;
+
+            string dir;
+
+            if (!File.Exists(PortableMode))
+            {
+                _logger.Info("Load settings standard mode");
+               dir = ConfigDir;
+            }
+            else
+            {
+                _logger.Info("Load settings portable mode");
+                dir = Application.StartupPath;
+            }
+
             if (!Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
@@ -104,26 +119,24 @@ namespace LogExpert
             {
                 return LoadOrCreateNew(null);
             }
-            else
+
+            using (Stream fs = File.OpenRead(dir + "\\settings.dat"))
             {
-                using (Stream fs = File.OpenRead(dir + "\\settings.dat"))
+                try
                 {
-                    try
-                    {
-                        return LoadOrCreateNew(fs);
-                    }   
-                    catch (Exception e)
-                    {
-                        _logger.Error(e,"Error loading settings: {0}");
-                        return LoadOrCreateNew(null);
-                    }
+                    return LoadOrCreateNew(fs);
+                }   
+                catch (Exception e)
+                {
+                    _logger.Error(e,"Error loading settings: {0}");
+                    return LoadOrCreateNew(null);
                 }
             }
         }
 
         private Settings LoadOrCreateNew(Stream fs)
         {
-            lock (loadSaveLock)
+            lock (_loadSaveLock)
             {
                 Settings settings;
 
@@ -240,9 +253,9 @@ namespace LogExpert
                     settings.preferences.pollingInterval = 250;
                 }
 
-                if (settings.preferences.multifileOptions == null)
+                if (settings.preferences.multiFileOptions == null)
                 {
-                    settings.preferences.multifileOptions = new MultifileOptions();
+                    settings.preferences.multiFileOptions = new MultiFileOptions();
                 }
 
                 if (settings.preferences.defaultEncoding == null)
@@ -260,7 +273,7 @@ namespace LogExpert
                     settings.preferences.maximumFilterEntries = 30;
                 }
 
-                ConvertSettings(settings, Assembly.GetExecutingAssembly().GetName().Version.Build);
+                ConvertSettings(settings);
 
                 return settings;
             }
@@ -268,12 +281,13 @@ namespace LogExpert
 
         private void Save(Settings settings, SettingsFlags flags)
         {
-            lock (loadSaveLock)
+            lock (_loadSaveLock)
             {
                 _logger.Info("Saving settings");
                 lock (this)
                 {
-                    string dir = ConfigDir;
+                    string dir = File.Exists(PortableMode) ? Application.StartupPath : ConfigDir;
+
                     if (!Directory.Exists(dir))
                     {
                         Directory.CreateDirectory(dir);
@@ -284,12 +298,14 @@ namespace LogExpert
                         Save(fs, settings, flags);
                     }
                 }
+
                 OnConfigChanged(flags);
             }
         }
 
         private void Save(Stream fs, Settings settings, SettingsFlags flags)
         {
+            //TODO SettingsFlags is currently not used => why does it exist
             settings.versionBuild = Assembly.GetExecutingAssembly().GetName().Version.Build;
             BinaryFormatter formatter = new BinaryFormatter();
             formatter.Serialize(fs, settings);
@@ -300,8 +316,7 @@ namespace LogExpert
         /// Convert settings loaded from previous versions.
         /// </summary>
         /// <param name="settings"></param>
-        /// <param name="currentBuildNumber"></param>
-        private void ConvertSettings(Settings settings, int currentBuildNumber)
+        private void ConvertSettings(Settings settings)
         {
             int oldBuildNumber = settings.versionBuild;
 
@@ -348,7 +363,7 @@ namespace LogExpert
 
 
         /// <summary>
-        /// Imports all or some of the settings/prefs stored in the inpute stream.
+        /// Imports all or some of the settings/prefs stored in the input stream.
         /// This will overwrite appropriate parts of the current (own) settings with the imported ones.
         /// </summary>
         /// <param name="fs"></param>
@@ -376,22 +391,34 @@ namespace LogExpert
 
             if ((flags & ExportImportFlags.ColumnizerMasks) == ExportImportFlags.ColumnizerMasks)
             {
-                newSettings.preferences.columnizerMaskList = importSettings.preferences.columnizerMaskList;
+                newSettings.preferences.columnizerMaskList = ReplaceOrKeepExisting(flags, ownSettings.preferences.columnizerMaskList, importSettings.preferences.columnizerMaskList);
             }
             if ((flags & ExportImportFlags.HighlightMasks) == ExportImportFlags.HighlightMasks)
             {
-                newSettings.preferences.highlightMaskList = importSettings.preferences.highlightMaskList;
+                newSettings.preferences.highlightMaskList = ReplaceOrKeepExisting(flags, ownSettings.preferences.highlightMaskList, importSettings.preferences.highlightMaskList);
             }
             if ((flags & ExportImportFlags.HighlightSettings) == ExportImportFlags.HighlightSettings)
             {
-                newSettings.hilightGroupList = importSettings.hilightGroupList;
+               newSettings.hilightGroupList = ReplaceOrKeepExisting(flags, ownSettings.hilightGroupList, importSettings.hilightGroupList);
             }
             if ((flags & ExportImportFlags.ToolEntries) == ExportImportFlags.ToolEntries)
             {
-                newSettings.preferences.toolEntries = importSettings.preferences.toolEntries;
+                newSettings.preferences.toolEntries = ReplaceOrKeepExisting(flags, ownSettings.preferences.toolEntries, importSettings.preferences.toolEntries);
             }
 
             return newSettings;
+        }
+
+        private static List<T> ReplaceOrKeepExisting<T>(ExportImportFlags flags, List<T> existingList, List<T> newList)
+        {
+            if ((flags & ExportImportFlags.KeepExisting) == ExportImportFlags.KeepExisting)
+            {
+                return existingList.Union(newList).ToList();                
+            }
+            else
+            {
+                return newList;
+            }
         }
 
         #endregion
